@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo
+    container_name: iot-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
+
+  mongo-express:
+    image: mongo-express
+    container_name: iot-mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASIC_AUTH_USERNAME: "admin"
+      ME_CONFIG_BASIC_AUTH_PASSWORD: "password"
+    depends_on:
+      - mongodb

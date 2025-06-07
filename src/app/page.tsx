@@ -1,103 +1,124 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from "react";
+import { Sidebar } from "./components/sidebar";
+import { Chart } from "./components/chart";
+import { DeviceStatusCard } from "./components/status_card";
+import { ControlButtons } from "./components/button";
+import { Footer } from "./components/footer";
+import type { DevicePayload } from "./types/device";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [activeTab, setActiveTab] = useState("dashboard");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const [device1Payload, setDevice1Payload] = useState<DevicePayload | null>(null);
+  const [device2Payload, setDevice2Payload] = useState<DevicePayload | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [res1, res2] = await Promise.all([
+        fetch("/api/device/device-1"),
+        fetch("/api/device/device-2"),
+      ]);
+
+      const [data1, data2]: [DevicePayload, DevicePayload] = await Promise.all([
+        res1.json(),
+        res2.json(),
+      ]);
+
+      setDevice1Payload(data1);
+      setDevice2Payload(data2);
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggleRelay1 = async (deviceId: string, newState: boolean) => {
+    await fetch(`/api/device/${deviceId}/relay1`, {
+      method: "POST",
+      body: JSON.stringify({ state: newState }),
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const handleToggleRelay2 = async (deviceId: string, newState: boolean) => {
+    await fetch(`/api/device/${deviceId}/relay2`, {
+      method: "POST",
+      body: JSON.stringify({ state: newState }),
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        deviceStatus1={device1Payload?.status || null}
+        deviceStatus2={device2Payload?.status || null}
+      />
+
+      {/* Main layout */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Scrollable content area */}
+        <main className="flex-1 overflow-auto p-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-black mb-2">
+              Device Dashboard
+            </h2>
+            <p className="text-gray-600">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+
+          {device1Payload && device2Payload ? (
+            <>
+              <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ControlButtons
+                  deviceId="device-1"
+                  deviceStatus={device1Payload.status}
+                  toggleRelay={handleToggleRelay1}
+                />
+                <ControlButtons
+                  deviceId="device-2"
+                  deviceStatus={device2Payload.status}
+                  toggleRelay={handleToggleRelay2}
+                />
+              </div>
+
+              <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DeviceStatusCard
+                  sensorData={[device1Payload.sensors]}
+                  deviceStatus={device1Payload.status}
+                />
+                <DeviceStatusCard
+                  sensorData={[device2Payload.sensors]}
+                  deviceStatus={device2Payload.status}
+                />
+              </div>
+
+              <Chart
+                sensorData1={[device1Payload.sensors]}
+                sensorData2={[device2Payload.sensors]}
+              />
+            </>
+          ) : (
+            <p className="text-gray-500">Loading device data...</p>
+          )}
+        
+          {/* Footer */}
+          <Footer />
+        </main>
+      </div>
     </div>
   );
 }
