@@ -1,34 +1,46 @@
-export interface GroupData {
-  voltage: number;
-  current: number;
-  power: number;
-  connected: boolean;
-  lampCount: number;
-  description: string;
-  relayPin: number;
-}
-
-export interface SensorData {
-  ldr: number;
-  pir1: boolean;
-  pir2: boolean;
-}
-
-export interface StatusData {
-  relay1: boolean;
-  relay2: boolean;
-  group1Active: boolean;
-  group2Active: boolean;
-  totalLampsOn: number;
-  isDark: boolean;
+export interface PowerData {
+  voltage?: number;
+  current?: number;
+  power?: number;
+  energy?: number;
+  status?: string; // "sensor_error" when PZEM sensor fails
 }
 
 export interface DevicePayload {
   deviceId: string;
-  group1: GroupData;
-  group2: GroupData;
-  sensors: SensorData;
-  status: StatusData;
   timestamp: number;
-  uptime: number;
+  
+  // Environmental sensors
+  ldrValue: number;
+  isDark: boolean;
+  pir1State: boolean;
+  pir2State: boolean;
+  
+  // Group status
+  group1Active: boolean;
+  group2Active: boolean;
+  
+  // Power monitoring data
+  group1Power: PowerData;
+  group2Power: PowerData;
+}
+
+// Optional: Helper types for API responses
+export interface ApiResponse {
+  success: boolean;
+  message?: string;
+  data?: DevicePayload;
+}
+
+// Optional: For device control endpoints
+export interface RelayControlRequest {
+  state: boolean;
+}
+
+export interface RelayControlResponse {
+  success: boolean;
+  deviceId: string;
+  relay: string;
+  newState: boolean;
+  message?: string;
 }

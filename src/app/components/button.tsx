@@ -1,19 +1,21 @@
 "use client";
 import React from "react";
 import { Power, CheckCircle, XCircle } from "lucide-react";
-import type { StatusData } from "../types/device";
 
 export const ControlButtons: React.FC<{
   deviceId: string;
-  deviceStatus: StatusData;
-  toggleRelay: (deviceId: string, newState: boolean) => void;
-}> = ({ deviceId, deviceStatus, toggleRelay }) => {
-  const isOnline = true; // You can compute this if needed from lastSeen or heartbeat
+  deviceStatus: string; // 'online' | 'offline'
+  relayState: boolean;
+  toggleRelay: (newState: boolean) => void;
+  groupName: string;
+}> = ({ deviceStatus, relayState, toggleRelay, groupName }) => {
+  const isOnline = deviceStatus === 'online';
 
   return (
-    <div className="mb-8 p-6 bg-white rounded-2xl shadow-lg border border-gray-100">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-semibold text-black">Device Control</h3>
+    <div className="space-y-4">
+      {/* Status indicator */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">Status</span>
         <div
           className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${
             isOnline
@@ -26,26 +28,31 @@ export const ControlButtons: React.FC<{
         </div>
       </div>
 
-      <div className="flex flex-col space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Relay 1</span>
-          <button
-            onClick={() => toggleRelay(deviceId, !deviceStatus.relay1)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
-              deviceStatus.relay1
-                ? "bg-green-500 hover:bg-green-600 text-white"
-                : "bg-gray-500 hover:bg-gray-600 text-white"
-            }`}
-          >
-            <Power size={16} />
-            <span>{deviceStatus.relay1 ? "Turn OFF" : "Turn ON"}</span>
-          </button>
-        </div>
+      {/* Control button */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">{groupName} Control</span>
+        <button
+          onClick={() => toggleRelay(!relayState)}
+          disabled={!isOnline}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
+            relayState
+              ? "bg-green-500 hover:bg-green-600 text-white"
+              : "bg-gray-500 hover:bg-gray-600 text-white"
+          }`}
+        >
+          <Power size={16} />
+          <span>{relayState ? "Turn OFF" : "Turn ON"}</span>
+        </button>
+      </div>
 
-        <div className="text-sm text-gray-600 mt-4">
-          Lamps ON: {deviceStatus.totalLampsOn} | Dark:{" "}
-          {deviceStatus.isDark ? "Yes" : "No"}
-        </div>
+      {/* Current state indicator */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+        <span className="text-sm text-gray-600">Current State:</span>
+        <span className={`text-sm font-medium ${
+          relayState ? "text-green-600" : "text-gray-600"
+        }`}>
+          {relayState ? "ON" : "OFF"}
+        </span>
       </div>
     </div>
   );
