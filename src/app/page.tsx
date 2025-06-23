@@ -18,7 +18,7 @@ export default function Home() {
     const fetchData = async () => {
       try {
         // Fetch from your single device endpoint
-        const response = await fetch("/api/device/status");
+        const response = await fetch("/api/devices/status");
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -43,7 +43,7 @@ export default function Home() {
   // Control functions for both relay groups on the single device
   const handleToggleRelay1 = async (newState: boolean) => {
     try {
-      const response = await fetch(`/api/device/${devicePayload?.deviceId}/relay1`, {
+      const response = await fetch(`/api/${devicePayload?.deviceId}/relay1`, {
         method: "POST",
         body: JSON.stringify({ state: newState }),
         headers: { "Content-Type": "application/json" },
@@ -59,7 +59,7 @@ export default function Home() {
 
   const handleToggleRelay2 = async (newState: boolean) => {
     try {
-      const response = await fetch(`/api/device/${devicePayload?.deviceId}/relay2`, {
+      const response = await fetch(`/api/${devicePayload?.deviceId}/relay2`, {
         method: "POST",
         body: JSON.stringify({ state: newState }),
         headers: { "Content-Type": "application/json" },

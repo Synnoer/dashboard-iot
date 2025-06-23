@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { RelayControlRequest, RelayControlResponse } from '~/app/types/device'; 
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { deviceId: string } }
-) {
+): Promise<NextResponse<RelayControlResponse>> {
   try {
     const { deviceId } = params;
-    const { state } = await req.json();
+    const { state }: RelayControlRequest = await req.json();
 
+    // Logging
     console.log(`Relay 2 control for ${deviceId}: ${state ? 'ON' : 'OFF'}`);
 
-    // For now, just return success
-    // In a real implementation, you'd need to communicate back to the ESP32
+    // Dummy response - replace with real control logic
     return NextResponse.json({
-      message: `Relay 2 ${state ? 'activated' : 'deactivated'}`,
+      success: true,
       deviceId,
-      relay: 2,
-      state
+      relay: '1',
+      newState: state,
+      message: `Relay 2 ${state ? 'activated' : 'deactivated'}`,
     });
-
   } catch (error) {
     console.error('Relay 2 control error:', error);
+
     return NextResponse.json(
-      { message: 'Failed to control relay 2' },
+      {
+        success: false,
+        deviceId: params.deviceId,
+        relay: '2',
+        newState: false,
+        message: 'Failed to control relay 1',
+      },
       { status: 500 }
     );
   }
