@@ -7,22 +7,22 @@ export interface PowerData {
 }
 
 export interface DevicePayload {
-  deviceId: string;
+  createdAt: string | number | Date;
+  sensor_id: string;
   timestamp: number;
   
-  // Environmental sensors
-  ldrValue: number;
-  isDark: boolean;
-  pir1State: boolean;
-  pir2State: boolean;
+  pir1_status: number;  // Sent as 0 or 1
+  pir2_status: number;  // Sent as 0 or 1
   
-  // Group status
-  group1Active: boolean;
-  group2Active: boolean;
-  
-  // Power monitoring data
-  group1Power: PowerData;
-  group2Power: PowerData;
+  relay1_status: number; // Sent as 0 or 1
+  relay2_status: number; // Sent as 0 or 1
+
+  // Power monitoring data from the single PZEM sensor
+  // The C++ code sends NaN on error, which becomes null in JSON.
+  voltage: number | null;
+  current: number | null;
+  power: number | null;
+  energy: number | null;
 }
 
 // Optional: Helper types for API responses

@@ -4,12 +4,10 @@ import { Sidebar } from "./components/sidebar";
 import { Chart } from "./components/chart";
 import { ControlButtons } from "./components/button";
 import { Footer } from "./components/footer";
-import type { DevicePayload } from "./types/device";
+import type { DevicePayload } from "./types/device"; 
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
-
-  // Changed: Only one device now
   const [devicePayload, setDevicePayload] = useState<DevicePayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,8 +15,8 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch from your single device endpoint
-        const response = await fetch("/api/devices/status");
+        // This endpoint should return the latest data for your device
+        const response = await fetch("/api/devices/status"); 
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -29,7 +27,7 @@ export default function Home() {
         setError(null);
       } catch (err) {
         console.error('Failed to fetch device data:', err);
-        setError('Failed to load device data');
+        setError('Failed to load device data. Is the ESP32 online?');
       } finally {
         setIsLoading(false);
       }
@@ -40,265 +38,157 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Control functions for both relay groups on the single device
-  const handleToggleRelay1 = async (newState: boolean) => {
+  // --- ADJUSTED: Generic relay control function ---
+  // This single function can control either relay based on the relayId.
+  const handleToggleRelay = async (relayId: '1' | '2', newState: boolean) => {
+    if (!devicePayload?.sensor_id) {
+        console.error("Device ID is not available to control relay.");
+        return;
+    }
     try {
-      const response = await fetch(`/api/${devicePayload?.deviceId}/relay1`, {
+      // --- CORRECTED: Using the dynamic API route from the Canvas ---
+      const response = await fetch(`/api/${devicePayload.sensor_id}/relay/${relayId}`, {
         method: "POST",
         body: JSON.stringify({ state: newState }),
         headers: { "Content-Type": "application/json" },
       });
       
       if (!response.ok) {
-        console.error('Failed to toggle relay 1');
+        // Update UI to show an error message if needed
+        console.error(`Failed to toggle relay ${relayId}`);
       }
+      // Optimistically update UI or refetch data after control action
+      // For now, the 5-second polling will update the state.
     } catch (err) {
-      console.error('Error toggling relay 1:', err);
+      console.error(`Error toggling relay ${relayId}:`, err);
     }
   };
-
-  const handleToggleRelay2 = async (newState: boolean) => {
-    try {
-      const response = await fetch(`/api/${devicePayload?.deviceId}/relay2`, {
-        method: "POST",
-        body: JSON.stringify({ state: newState }),
-        headers: { "Content-Type": "application/json" },
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to toggle relay 2');
-      }
-    } catch (err) {
-      console.error('Error toggling relay 2:', err);
-    }
-  };
-
-  // Helper function to determine device status
+  
+  // --- ADJUSTED: Helper function to determine device status ---
   const getDeviceStatus = () => {
-    if (!devicePayload) return 'offline';
-    
-    // Check if both power sensors have errors
-    const group1HasError = devicePayload.group1Power.status === 'sensor_error';
-    const group2HasError = devicePayload.group2Power.status === 'sensor_error';
-    
-    if (group1HasError && group2HasError) return 'offline';
+    if (error) return 'offline';
+    if (!devicePayload) return 'loading';
+    // The PZEM sensor sends NaN on error, which becomes null in JSON.
+    if (devicePayload.voltage === null) return 'sensor_error';
     return 'online';
   };
 
+  const statusTextMap = {
+      'offline': 'Offline',
+      'loading': 'Loading...',
+      'sensor_error': 'Sensor Error',
+      'online': 'Online'
+  };
+
+  const statusColorMap = {
+    'offline': 'text-red-600',
+    'loading': 'text-gray-500',
+    'sensor_error': 'text-yellow-600',
+    'online': 'text-green-600'
+  };
+  
+  const deviceStatus = getDeviceStatus();
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Sidebar - Updated for single device */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        deviceStatus={getDeviceStatus()}
+        deviceStatus={deviceStatus}
       />
 
-      {/* Main layout */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Scrollable content area */}
         <main className="flex-1 overflow-auto p-8">
           {/* Header */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-black mb-2">
-              Smart Lamp Controller Dashboard
-            </h2>
+            <h2 className="text-3xl font-bold text-black mb-2">Smart Power Monitor</h2>
             <p className="text-gray-600">
               {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
+                weekday: "long", year: "numeric", month: "long", day: "numeric",
               })}
             </p>
             {devicePayload && (
               <p className="text-sm text-gray-500 mt-1">
-                Device: {devicePayload.deviceId} | 
-                Status: <span className={`font-semibold ${
-                  getDeviceStatus() === 'online' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {getDeviceStatus()}
+                Device: {devicePayload.sensor_id} | 
+                Status: <span className={`font-semibold ${statusColorMap[deviceStatus]}`}>
+                   {statusTextMap[deviceStatus]}
                 </span>
                 | Last Update: {new Date(devicePayload.timestamp).toLocaleTimeString()}
               </p>
             )}
           </div>
 
-          {error ? (
+          {error && !isLoading && (
             <div className="mb-8 p-4 bg-red-100 border border-red-300 rounded-lg">
-              <p className="text-red-700">Error: {error}</p>
-              <p className="text-red-600 text-sm mt-1">
-                Make sure your ESP32 is connected and sending data to the API.
-              </p>
-            </div>
-          ) : isLoading ? (
-            <div className="mb-8 p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500">Loading device data...</p>
-            </div>
-          ) : devicePayload ? (
-            <>
-              {/* Control buttons for both relay groups */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Lamp Group Controls</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h4 className="text-lg font-medium mb-3">Group 1 (4 Lamps)</h4>
-                    <ControlButtons
-                      deviceId={devicePayload.deviceId}
-                      deviceStatus={getDeviceStatus()}
-                      relayState={devicePayload.group1Active}
-                      toggleRelay={handleToggleRelay1}
-                      groupName="Group 1"
-                    />
-                    <div className="mt-3 text-sm text-gray-600">
-                      <p>PIR Sensor: {devicePayload.pir1State ? '🔴 Motion' : '🟢 No Motion'}</p>
-                      <p>Auto Status: {devicePayload.group1Active ? '✅ ON' : '⭕ OFF'}</p>
-                      <p>Power Status: {devicePayload.group1Power.status === 'sensor_error' ? '🔴 Sensor Error' : '🟢 Normal'}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h4 className="text-lg font-medium mb-3">Group 2 (4 Lamps)</h4>
-                    <ControlButtons
-                      deviceId={devicePayload.deviceId}
-                      deviceStatus={getDeviceStatus()}
-                      relayState={devicePayload.group2Active}
-                      toggleRelay={handleToggleRelay2}
-                      groupName="Group 2"
-                    />
-                    <div className="mt-3 text-sm text-gray-600">
-                      <p>PIR Sensor: {devicePayload.pir2State ? '🔴 Motion' : '🟢 No Motion'}</p>
-                      <p>Auto Status: {devicePayload.group2Active ? '✅ ON' : '⭕ OFF'}</p>
-                      <p>Power Status: {devicePayload.group2Power.status === 'sensor_error' ? '🔴 Sensor Error' : '🟢 Normal'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Environmental sensor data */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Environmental Sensors</h3>
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">
-                        {devicePayload.isDark ? '🌙' : '☀️'}
-                      </div>
-                      <p className="text-lg font-medium">
-                        {devicePayload.isDark ? 'Dark' : 'Bright'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        LDR: {devicePayload.ldrValue}
-                      </p>
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">
-                        {devicePayload.pir1State ? '🚶' : '🚫'}
-                      </div>
-                      <p className="text-lg font-medium">PIR 1</p>
-                      <p className="text-sm text-gray-600">
-                        {devicePayload.pir1State ? 'Motion Detected' : 'No Motion'}
-                      </p>
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">
-                        {devicePayload.pir2State ? '🚶' : '🚫'}
-                      </div>
-                      <p className="text-lg font-medium">PIR 2</p>
-                      <p className="text-sm text-gray-600">
-                        {devicePayload.pir2State ? 'Motion Detected' : 'No Motion'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Power consumption data */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Power Consumption</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h4 className="text-lg font-semibold mb-4">Group 1 Power</h4>
-                    {devicePayload.group1Power.status === 'sensor_error' ? (
-                      <div className="text-center py-8">
-                        <div className="text-4xl mb-2">⚠️</div>
-                        <p className="text-red-600 font-medium">Sensor Error</p>
-                        <p className="text-sm text-gray-500">PZEM sensor not responding</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Voltage:</span>
-                          <span className="font-medium">{devicePayload.group1Power.voltage?.toFixed(1) || 0}V</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Current:</span>
-                          <span className="font-medium">{devicePayload.group1Power.current?.toFixed(2) || 0}A</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Power:</span>
-                          <span className="font-medium">{devicePayload.group1Power.power?.toFixed(1) || 0}W</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Energy:</span>
-                          <span className="font-medium">{devicePayload.group1Power.energy?.toFixed(2) || 0}kWh</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h4 className="text-lg font-semibold mb-4">Group 2 Power</h4>
-                    {devicePayload.group2Power.status === 'sensor_error' ? (
-                      <div className="text-center py-8">
-                        <div className="text-4xl mb-2">⚠️</div>
-                        <p className="text-red-600 font-medium">Sensor Error</p>
-                        <p className="text-sm text-gray-500">PZEM sensor not responding</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Voltage:</span>
-                          <span className="font-medium">{devicePayload.group2Power.voltage?.toFixed(1) || 0}V</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Current:</span>
-                          <span className="font-medium">{devicePayload.group2Power.current?.toFixed(2) || 0}A</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Power:</span>
-                          <span className="font-medium">{devicePayload.group2Power.power?.toFixed(1) || 0}W</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Energy:</span>
-                          <span className="font-medium">{devicePayload.group2Power.energy?.toFixed(2) || 0}kWh</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Charts - Show data from single device */}
-              <Chart
-                sensorData1={[devicePayload]}
-                sensorData2={[devicePayload]} // Same device, different groups
-                deviceName={devicePayload.deviceId}
-              />
-            </>
-          ) : (
-            <div className="text-center p-8">
-              <p className="text-gray-500 text-lg">No device data available</p>
-              <p className="text-gray-400 text-sm mt-2">
-                Check if your ESP32 is connected and sending data
-              </p>
+              <p className="text-red-700 font-bold">Error: {error}</p>
             </div>
           )}
+
+          {isLoading ? (
+            <div className="p-8 text-center"><p>Loading device data...</p></div>
+          ) : devicePayload ? (
+            <>
+              {/* --- ADJUSTED: Simplified Control section --- */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-black">Device Controls</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Relay 1 Control */}
+                  <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h4 className="text-lg font-medium mb-3 text-black">Relay 1</h4>
+                    <ControlButtons
+                      deviceId={devicePayload.sensor_id}
+                      deviceStatus={deviceStatus}
+                      relayState={!!devicePayload.relay1_status}
+                      toggleRelay={(newState) => handleToggleRelay('1', newState)}
+                      groupName="Relay 1"
+                    />
+                    <div className="mt-3 text-sm text-gray-600">
+                      <p>PIR Sensor: {devicePayload.pir1_status ? '🔴 Motion' : '🟢 No Motion'}</p>
+                      <p>Status: {devicePayload.relay1_status ? '✅ ON' : '⭕ OFF'}</p>
+                    </div>
+                  </div>
+                  {/* Relay 2 Control */}
+                  <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h4 className="text-lg font-medium mb-3 text-black">Relay 2</h4>
+                    <ControlButtons
+                      deviceId={devicePayload.sensor_id}
+                      deviceStatus={deviceStatus}
+                      relayState={!!devicePayload.relay2_status}
+                      toggleRelay={(newState) => handleToggleRelay('2', newState)}
+                      groupName="Relay 2"
+                    />
+                     <div className="mt-3 text-sm text-gray-600">
+                      <p>PIR Sensor: {devicePayload.pir2_status ? '🔴 Motion' : '🟢 No Motion'}</p>
+                      <p>Status: {devicePayload.relay2_status ? '✅ ON' : '⭕ OFF'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- ADJUSTED: Single Power Consumption section --- */}
+              <div className="mb-8 text-black">
+                <h3 className="text-xl font-semibold mb-4">Power Consumption</h3>
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  {deviceStatus === 'sensor_error' ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-600 font-medium">PZEM Sensor Error</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div><span className="text-gray-600 block">Voltage</span><span className="font-medium text-xl">{devicePayload.voltage?.toFixed(1) ?? 'N/A'}V</span></div>
+                        <div><span className="text-gray-600 block">Current</span><span className="font-medium text-xl">{devicePayload.current?.toFixed(2) ?? 'N/A'}A</span></div>
+                        <div><span className="text-gray-600 block">Power</span><span className="font-medium text-xl">{devicePayload.power?.toFixed(1) ?? 'N/A'}W</span></div>
+                        <div><span className="text-gray-600 block">Energy</span><span className="font-medium text-xl">{devicePayload.energy?.toFixed(2) ?? 'N/A'}kWh</span></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </>
+          ) : (
+             <div className="text-center p-8"><p>No device data available.</p></div>
+          )}
         
-          {/* Footer */}
           <Footer />
         </main>
       </div>

@@ -1,23 +1,36 @@
 services:
-  mongodb:
-    image: mongo
-    container_name: iot-mongo
+  # Your Next.js Application
+  app:
+    build: . # Assumes a Dockerfile is in your project root
     ports:
-      - "27017:27017"
-    volumes:
-      - ./data:/data/db
-
-  mongo-express:
-    image: mongo-express
-    container_name: iot-mongo-express
-    restart: always
-    ports:
-      - "8081:8081"
+      - "3000:3000" # Exposes your app on localhost:3000
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
-      ME_CONFIG_BASIC_AUTH_USERNAME: "admin"
-      ME_CONFIG_BASIC_AUTH_PASSWORD: "password"
+      # Pass the MONGODB_URI to your app container
+      MONGODB_URI: "mongodb://iot-mongo:27017/lamp-monitor"
+      # Add other environment variables from your .env file here
+      JWT_SECRET: "your_super_secret_key_here"
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
     depends_on:
-      - mongodb
+      - iot-mongo # Tells the app to wait for the database to start
+    networks:
+      - lamp-network
+
+  # Your MongoDB Database
+  iot-mongo:
+    image: mongo:latest # Use the official Mongo image
+    container_name: iot-mongo # This matches the hostname in your URI
+    ports:
+      - "27017:27017" # Optional: exposes the DB to your host machine for debugging
+    volumes:
+      - mongo-data:/data/db # Persists your database data
+    networks:
+      - lamp-network
+
+# Define the shared network
+networks:
+  lamp-network:
+    driver: bridge
+
+# Define the volume for persistent data
+volumes:
+  mongo-data:
