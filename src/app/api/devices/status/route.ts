@@ -93,7 +93,7 @@ export async function GET() {
     const mockLatestReadings = [
       {
         _id: "mock_id_12345",
-        sensor_id: "ESP32_LivingRoom_Mock",
+        sensor_id: "ESP32 Selasar",
         timestamp: Date.now() - 5000, // 5 seconds ago
         pir1_status: 1,
         pir2_status: 0,
